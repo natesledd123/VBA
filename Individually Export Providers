@@ -1,0 +1,61 @@
+Sub IndExportToPDF()
+    Dim ws As Worksheet
+    Dim filePath As String
+    Dim fileName As String
+    Dim fullPath As String
+    Dim providerName As String
+    Dim additionalInfo As String
+    Dim extraInfo As String
+    Dim nameCell As Range
+    Dim infoCell As Range
+    Dim extraInfoCell As Range
+
+    ' Set the worksheet you want to export
+    Set ws = ThisWorkbook.Sheets("Ind Payment Summary Table")
+
+    ' Specify the cells containing the provider name, additional info, and extra info
+    Set nameCell = ws.Range("D10") ' Replace "" with the cell containing the provider name
+    Set infoCell = ws.Range("D13") ' Replace "" with the cell containing providerID
+    Set extraInfoCell = ws.Range("P4") ' Replace "" with the cell containing payment date
+
+    ' Get provider name, additional info, and extra info from the specified cells
+    If Not IsEmpty(nameCell.Value) Then
+        providerName = nameCell.Value
+    Else
+        MsgBox "Provider name cell is empty. Please ensure the cell has a value.", vbExclamation, "Missing Provider Name"
+        Exit Sub
+    End If
+
+    If Not IsEmpty(infoCell.Value) Then
+        providerID = infoCell.Value
+    Else
+        MsgBox "Additional info cell is empty. Please ensure the cell has a value.", vbExclamation, "Missing Additional Info"
+        Exit Sub
+    End If
+
+    If Not IsEmpty(extraInfoCell.Value) Then
+        paymentDate = extraInfoCell.Value
+    Else
+        MsgBox "Extra info cell is empty. Please ensure the cell has a value.", vbExclamation, "Missing Extra Info"
+        Exit Sub
+    End If
+
+    ' Define the file path and name for the PDF file
+    filePath = ThisWorkbook.Path ' Saves in the same folder as the workbook
+    fileName = providerID & "_" & 0 & "_" & Format(paymentDate, "yyyy-mm-dd") & "_" & providerName & ".pdf"
+    fullPath = filePath & "\" & fileName
+
+    ' Export the selected worksheet as PDF
+    On Error Resume Next
+    ws.ExportAsFixedFormat Type:=xlTypePDF, fileName:=fullPath, Quality:=xlQualityStandard, _
+        IncludeDocProperties:=True, IgnorePrintAreas:=False, OpenAfterPublish:=True
+    If Err.Number <> 0 Then
+        MsgBox "An error occurred while saving the PDF.", vbCritical, "Export Error"
+        Err.Clear
+        Exit Sub
+    End If
+    On Error GoTo 0
+
+    ' Notify user of successful export
+    MsgBox "PDF has been saved to: " & fullPath, vbInformation, "Export Successful"
+End Sub
