@@ -1,0 +1,91 @@
+Sub ExportProviderPDFs()
+    Dim ws As Worksheet
+    Dim pt As PivotTable
+    Dim ptLinked As PivotTable
+    Dim pfProviderName As PivotField
+    Dim pfProviderID As PivotField
+    Dim pi As PivotItem
+    Dim providerName As String
+    Dim providerID As String
+    Dim paymentDate As String
+    Dim filePath As String
+    Dim fileName As String
+    Dim fullPath As String
+
+    ' Set worksheet and PivotTable variables
+    Set ws = ThisWorkbook.Worksheets("Payment Summary Table")
+    Set pt = ws.PivotTables("PivotTable2")
+    Set ptLinked = ws.PivotTables("PivotTable8")
+    Set pfProviderName = pt.PivotFields("Provider Name:")
+    Set pfProviderID = pt.PivotFields("ProviderId")
+
+    ' Extract the payment date from the Pivot Table its located in
+    On Error Resume Next
+    paymentDate = ptLinked.TableRange1.Cells(2, 1).Value ' Adjust row/column based on location in the Pivot Table
+    If Err.Number <> 0 Or paymentDate = "" Then
+        MsgBox "Failed to retrieve payment date from PivotTable32. Please check the table.", vbExclamation
+        Exit Sub
+    End If
+    On Error GoTo 0
+
+    ' Format the payment date as mm-dd-yyyy
+    paymentDate = Format(paymentDate, "mm-dd-yyyy")
+
+    ' Turn off screen updating to improve saving speed
+    Application.ScreenUpdating = False
+
+    ' Loop through each provider in the PivotField
+    For Each pi In pfProviderName.PivotItems
+        providerName = pi.Name
+
+        ' Handle invalid characters in provider name
+        providerName = Replace(providerName, "/", "-")
+        providerName = Replace(providerName, "\", "-")
+        providerName = Replace(providerName, ":", "-")
+        providerName = Replace(providerName, "*", "")
+        providerName = Replace(providerName, "?", "")
+        providerName = Replace(providerName, """", "")
+        providerName = Replace(providerName, "<", "")
+        providerName = Replace(providerName, ">", "")
+        providerName = Replace(providerName, "|", "")
+
+        ' Filter the PivotTable for the next provider
+        On Error Resume Next ' Avoid breaking on invalid filters
+        pt.ManualUpdate = True
+        pfProviderName.CurrentPage = providerName
+        On Error GoTo 0
+        pt.ManualUpdate = False
+
+        ' Retrieve the corresponding Provider ID from the PivotTable
+        On Error Resume Next
+        providerID = pfProviderID.DataRange.Cells(1, 1).Value ' Adjust to the first visible cell in the Provider ID field
+        If Err.Number <> 0 Or providerID = "" Then
+            Debug.Print "Provider ID not found for " & providerName & ". Skipping..."
+            GoTo NextProvider
+        End If
+        On Error GoTo 0
+
+        ' Define the file path and name for the PDF file
+        filePath = ThisWorkbook.Path ' Saves in the same folder as the workbook
+        fileName = providerID & "_0_" & paymentDate & "_" & providerName & "_00_" & ".pdf"
+        fullPath = filePath & "\" & fileName
+
+        ' Export the sheet to a PDF
+        On Error Resume Next ' Avoid breaking on invalid export
+        ws.ExportAsFixedFormat Type:=xlTypePDF, fileName:=fullPath, Quality:=xlQualityStandard, _
+            IncludeDocProperties:=True, IgnorePrintAreas:=False, OpenAfterPublish:=False
+        If Err.Number <> 0 Then
+            Debug.Print "Failed to export PDF for " & providerName
+            Err.Clear
+        End If
+        On Error GoTo 0
+
+NextProvider:
+    Next pi
+
+    ' Restore screen updating
+    Application.ScreenUpdating = True
+
+    ' Notify the user that the export process is complete
+    MsgBox "All Providers PDFs exported successfully!", vbInformation
+End Sub
